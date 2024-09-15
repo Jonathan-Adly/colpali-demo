@@ -9,4 +9,3 @@ channels-redis==4.2.0
 openai==1.35.15 
 twilio==9.2.3 
 django-phonenumber-field[phonenumberslite]==8.0.0
-retell-sdk==4.0.0
