@@ -1,2 +1,108 @@
-async def run_rag_pipeline(messages):
-    return None
+from django.conf import settings
+from openai import OpenAI
+
+from config.rag_model import get_rag_model
+
+
+def run_rag_pipeline(messages):
+    RAG = get_rag_model()
+    # first step - as this multi-conversation turns is to transform the messages in a RAG-appropriate query
+    # example: message = ["role": "user", "content": "What is the capital of Brazil?", "assistant": "Brazil", "user": "how about france?"]
+    # query should be = What the capital of France?
+    prompt = """ 
+    You are given a conversation between a user and an assistant. We need to transform the last message from the user into a question appropriate for a RAG pipeline.
+    Given the nature and flow of conversation. 
+
+    Example #1:
+    User: What is the capital of Brazil?
+    Assistant: Brazil
+    User: How about France?
+    RAG Query: What is the capital of France?
+    <reasoning> 
+    Somewhat related query, however, if we simply use "how about france?" without any transformation, the RAG pipeline will not be able to provide a meaningful response.
+    The transformation took the previous question (what the capital of Brazil?) as a strong hint about the user intention
+    </reasoning>
+
+    Example #2:
+    User: What is the policy on working from home? 
+    Assistant: <policy details>
+    User: What is the side effects of Wegovy?
+    RAG Query: What are the side effects of Wegovy?
+    <reasoning>
+    The user is asking for the side effects of Wegovy, the transformation is straightforward, we just need to slightly adjust. 
+    The previous question was about a completely different topic, so it has no influence on the transformation.
+    </reasoning>
+
+    Example #3:
+    User: What is the highest monetary value of a gift I can recieve from a client?
+    Assistant: <policy details>
+    User: Is there a time limit between gifts?
+    RAG Query: What is the highest monetary value of a gift I can recieve from a client within a specific time frame?
+    <reasoning>
+    The user queries are very related and a continuation of the same question. He is asking for more details about the same topic.
+    The transformation needs to take into account the previous question and the current one.
+    </reasoning>
+
+    Coversation:
+    """
+    for message in messages:
+        prompt += f"{message['role']}: {message['content']}\n"
+
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1", api_key=settings.OPENROUTER_API_KEY
+    )
+
+    response = client.chat.completions.create(
+        model="openai/chatgpt-4o-latest",
+        messages=[{"role": "assistant", "content": prompt}],
+        stream=False,
+    )
+    query = response.choices[0].message.content
+    # take out RAG Query: from the response
+    if "rag query:" in query.lower():
+        query = query.split("ry:")[1].strip()
+        # remove any reasonings tags
+        query = query.split("<reasoning>")[0].strip()
+    print(f"This what we will send to the RAG pipeline: {query}")
+    results = RAG.search(query, k=3)
+    mapping = (
+        RAG.get_doc_ids_to_file_names()
+    )  # {1: 'docs/MSBI House Staff Manual .pdf', 2: 'docs/IntellectualProperty-Policy.pdf'}
+    context= []
+    for result in results:
+        document_title = mapping[result["doc_id"]]
+        page_num = result["page_num"]
+        base64 = result["base64"]
+        # base64 doesn;t have data: part so we need to add it
+        if "data:image" not in base64:
+            base64 = f"data:image/png;base64,{base64}"
+        context.append(
+            {
+                "metadata": f"{document_title} - Page {page_num}",
+                "base64": base64,
+            }
+        )
+    content = [
+        {
+            "type": "text",
+            "text": f"""Use the following images as a reference to answer the following user questions: {query}. They are from the following documents:
+            {', '.join([c['metadata'] for c in context])} \n \n
+
+            Let the user know where the answer came from, and what exactly is the reference.
+            """,
+        },
+        {
+            "type": "image_url",
+            "image_url": {"url": context[0]["base64"]},
+        },
+        {
+            "type": "image_url",
+            "image_url": {"url": context[1]["base64"]},
+        },
+        {
+            "type": "image_url",
+            "image_url": {"url": context[2]["base64"]},
+        },
+    ]
+    return content
+    

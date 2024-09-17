@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 
@@ -62,7 +63,7 @@ class LlmClient:
         func_arguments = ""
         request_with_context = await self.get_context(request)
         stream = await self.client.chat.completions.create(
-            model="google/gemini-pro-1.5",
+            model="openai/chatgpt-4o-latest",
             messages=request_with_context["messages"],
             stream=True,
             # tools=self.prepare_functions(),
@@ -161,16 +162,15 @@ class LlmClient:
         last_message = messages[-1]
         context = None
         if last_message["role"] == "user":
-            context = await run_rag_pipeline(messages)
+            # run_rag_pipline is synchronous, so we need to await it
+            context = await asyncio.to_thread(run_rag_pipeline, messages)
 
         # if you don't have a rag pipeline, it will always be None, so this function will always return the request as is
-        if context:
-            last_message["content"] = (
-                f"{last_message['content']}\n Background information: {context}"
-            )
+        if context:    
+            last_message["content"] = context
             # pop the last message and append the new message
             messages.pop()
             messages.append(last_message)
             request["messages"] = messages
-
+        print(f"Request with context: {request}")
         return request
