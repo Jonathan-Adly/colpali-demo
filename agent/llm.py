@@ -3,7 +3,7 @@ import json
 
 from django.conf import settings
 from django.core.mail import EmailMessage
-from openai import AsyncOpenAI, OpenAI
+from openai import AsyncOpenAI
 from phonenumber_field.phonenumber import PhoneNumber
 from twilio.rest import Client
 
@@ -12,7 +12,10 @@ from .prompt import PROMPT
 
 class LlmClient:
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        # we use openrouter for easy access and interchangability with other AI models
+        self.client = AsyncOpenAI(
+            base_url="https://openrouter.ai/api/v1", api_key=settings.OPENROUTER_API_KEY
+        )
         self.begin_sentence = """Hi there! My name is Amy, and I'm a your AI assistant. I'm here to help you with any questions you might have about your documents. How can I assist you today?"""
         self.agent_prompt = PROMPT
 
@@ -56,11 +59,12 @@ class LlmClient:
     async def draft_response(self, request):
         func_call = {}
         func_arguments = ""
+        request_with_context = await self.get_context(request)
         stream = await self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=request["messages"],
+            model="google/gemini-pro-1.5",
+            messages=request_with_context["messages"],
             stream=True,
-            tools=self.prepare_functions(),
+            # tools=self.prepare_functions(),
         )
         first_message = True
         async for chunk in stream:
@@ -81,7 +85,7 @@ class LlmClient:
 
             if chunk.choices[0].delta.content:
                 yield {
-                    "response_id": int(request["response_id"]) + 1,
+                    "response_id": int(request_with_context["response_id"]) + 1,
                     "content": chunk.choices[0].delta.content,
                     "content_complete": False,
                     "first_message": first_message,
@@ -103,7 +107,7 @@ class LlmClient:
                     content = "I have sent you an SMS with a video link that will show you how to inject the medicine. Please check your phone. Here is the link: dummy link"
 
                 yield {
-                    "response_id": int(request["response_id"]) + 1,
+                    "response_id": int(request_with_context["response_id"]) + 1,
                     "content": content,
                     "content_complete": True,
                     "first_message": first_message,
@@ -112,7 +116,7 @@ class LlmClient:
             # Add more functions here
         else:
             yield {
-                "response_id": int(request["response_id"]) + 1,
+                "response_id": int(request_with_context["response_id"]) + 1,
                 "content": "",
                 "content_complete": True,
                 "first_message": first_message,
@@ -147,3 +151,26 @@ class LlmClient:
             )
 
         return True
+
+    async def get_context(self, request):
+        """if the last message was from the user, we can append a context/background info to the message
+        for RAG pipelines
+        """
+        context = "the user name is John Doe and he is 30 years old"
+        messages = request["messages"]
+        need_context = False
+        last_message = messages[-1]
+        if last_message["role"] == "user":
+            need_context = True
+
+        if need_context and context:
+            last_message["content"] = (
+                f"{last_message['content']}\n Background information: {context}"
+            )
+            # pop the last message and append the new message
+            messages.pop()
+            messages.append(last_message)
+            print(messages)
+            request["messages"] = messages
+
+        return request
