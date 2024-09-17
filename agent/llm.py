@@ -170,7 +170,6 @@ class LlmClient:
             # pop the last message and append the new message
             messages.pop()
             messages.append(last_message)
-            print(messages)
             request["messages"] = messages
 
         return request
