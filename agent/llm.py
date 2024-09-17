@@ -8,6 +8,7 @@ from phonenumber_field.phonenumber import PhoneNumber
 from twilio.rest import Client
 
 from .prompt import PROMPT
+from .rag import run_rag_pipeline
 
 
 class LlmClient:
@@ -154,16 +155,16 @@ class LlmClient:
 
     async def get_context(self, request):
         """if the last message was from the user, we can append a context/background info to the message
-        for RAG pipelines
+        that came from a RAG pipelines
         """
-        context = "the user name is John Doe and he is 30 years old"
         messages = request["messages"]
-        need_context = False
         last_message = messages[-1]
+        context = None
         if last_message["role"] == "user":
-            need_context = True
+            context = await run_rag_pipeline(messages)
 
-        if need_context and context:
+        # if you don't have a rag pipeline, it will always be None, so this function will always return the request as is
+        if context:
             last_message["content"] = (
                 f"{last_message['content']}\n Background information: {context}"
             )
