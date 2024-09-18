@@ -101,14 +101,20 @@ class LLMWebsocketChatConsumer(AsyncWebsocketConsumer):
             outer_div = self.dynamic_classes.get("user_outdiv", "")
             inner_div = self.dynamic_classes.get("user_innerdiv", "")
             p_style = self.dynamic_classes.get("user_p_style", "")
+        
+        image_container_style = self.dynamic_classes.get("image_container_style", "")
+        image_style = self.dynamic_classes.get("image_style", "")
+        image_caption = self.dynamic_classes.get("image_caption", "")
         # in the case of the first message, we add a new div to the message log
         if first_message:
             # previous div was chat-0, so we increment by 1
             chat_id = f"chat-{response_id + 1}"
             template = f"""<div id="messageLog" hx-swap-oob="beforeend">
-                <div class="{outer_div}">
-                    <div class="{inner_div}">
-                        <div id="{chat_id}" class="{p_style}"><strong> {role}:</strong> {content}</div>
+              <div class="{outer_div}">
+                <div class="{inner_div}">
+                    <div>
+                        <p class="font-semibold text-gray-800 mb-2">{role}</p>
+                       <div id="{chat_id}"class="{p_style}">{content}</div>
                     </div>
                 </div>
             </div>
@@ -119,14 +125,14 @@ class LLMWebsocketChatConsumer(AsyncWebsocketConsumer):
             if image:
                 template = f"""
                 <div id={chat_id} hx-swap-oob="beforeend">
-                           <img
-                            alt=""
-                            src="{image}"
-                            class="h-64 w-full object-contain sm:h-80 lg:h-96"
-                        />
-                        <p class="mt-2 max-w-sm text-gray-700">
-                            {content}
-                        </p>
+                         <div class="{image_container_style}">
+                            <img
+                                alt="Uploaded document"
+                                src="{image}"
+                                class="{image_style}"
+                            />
+                            <p class="{image_caption}">{content}</p>
+                        </div>
                 </div>
                 """
             

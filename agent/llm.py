@@ -18,7 +18,7 @@ class LlmClient:
         self.client = AsyncOpenAI(
             base_url="https://openrouter.ai/api/v1", api_key=settings.OPENROUTER_API_KEY
         )
-        self.begin_sentence = """Hi there! My name is Amy, and I'm a your AI assistant. I'm here to help you with any questions you might have about your documents. How can I assist you today?"""
+        self.begin_sentence = """Hi there!I'm a your AI Healthcare policies assistant. I'm here to help you with any questions you might have about your organization documents. How can I assist you today?"""
         self.agent_prompt = PROMPT
 
     def prepare_functions(self):
@@ -84,6 +84,7 @@ class LlmClient:
                     "role": "assistant",
                     "image": c["base64"],
                 }
+                await asyncio.sleep(0.1)
             yield {
                 "response_id": int(request["response_id"]) + 1,
                 "content": """Now, I will analyse the content of the documents and provide you with the information you need.
@@ -223,6 +224,7 @@ class LlmClient:
         """
         messages = request["messages"]
         context = None
+        last_message = messages[-1]
         if last_message["role"] == "user":
             # run_rag_pipline is synchronous, so we need to await it
             context = await asyncio.to_thread(run_rag_pipeline, messages)
