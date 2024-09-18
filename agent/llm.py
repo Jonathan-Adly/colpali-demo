@@ -222,7 +222,6 @@ class LlmClient:
         that came from a RAG pipelines
         """
         messages = request["messages"]
-        last_message = messages[-1]
         context = None
         if last_message["role"] == "user":
             # run_rag_pipline is synchronous, so we need to await it
