@@ -43,6 +43,13 @@ def run_rag_pipeline(messages):
     The transformation needs to take into account the previous question and the current one.
     </reasoning>
 
+    Example #4:
+    User: Hello!
+    RAQ Query: Not applicable
+    <reasoning>
+    The user is simply greeting the assistant, there is no question to transform. This applies to any non-question message,
+    </reasoning>
+
     Coversation:
     """
     for message in messages:
@@ -53,12 +60,14 @@ def run_rag_pipeline(messages):
     )
 
     response = client.chat.completions.create(
-        model="openai/chatgpt-4o-latest",
+        model="openai/gpt-4o-2024-08-06",
         messages=[{"role": "assistant", "content": prompt}],
         stream=False,
     )
     query = response.choices[0].message.content
     # take out RAG Query: from the response
+    if "not applicable" in query.lower():
+        return []
     if "rag query:" in query.lower():
         query = query.split("ry:")[1].strip()
         # remove any reasonings tags
@@ -70,7 +79,7 @@ def run_rag_pipeline(messages):
     )  # {1: 'docs/MSBI House Staff Manual .pdf', 2: 'docs/IntellectualProperty-Policy.pdf'}
     context= []
     for result in results:
-        document_title = mapping[result["doc_id"]]
+        document_title = mapping[result["doc_id"]].split("/")[-1]
         page_num = result["page_num"]
         base64 = result["base64"]
         # base64 doesn;t have data: part so we need to add it
@@ -82,27 +91,5 @@ def run_rag_pipeline(messages):
                 "base64": base64,
             }
         )
-    content = [
-        {
-            "type": "text",
-            "text": f"""Use the following images as a reference to answer the following user questions: {query}. They are from the following documents:
-            {', '.join([c['metadata'] for c in context])} \n \n
-
-            Let the user know where the answer came from, and what exactly is the reference.
-            """,
-        },
-        {
-            "type": "image_url",
-            "image_url": {"url": context[0]["base64"]},
-        },
-        {
-            "type": "image_url",
-            "image_url": {"url": context[1]["base64"]},
-        },
-        {
-            "type": "image_url",
-            "image_url": {"url": context[2]["base64"]},
-        },
-    ]
-    return content
+    return context
     

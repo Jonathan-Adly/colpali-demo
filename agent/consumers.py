@@ -91,10 +91,12 @@ class LLMWebsocketChatConsumer(AsyncWebsocketConsumer):
         first_message = text_data_json["first_message"]
         content_complete = text_data_json["content_complete"]
         role = text_data_json["role"].title()
+        image = text_data_json.get("image", None)
         if role == "Assistant":
             outer_div = self.dynamic_classes.get("assistant_outdiv", "")
             inner_div = self.dynamic_classes.get("assistant_innerdiv", "")
             p_style = self.dynamic_classes.get("assistant_p_style", "")
+                
         else:
             outer_div = self.dynamic_classes.get("user_outdiv", "")
             inner_div = self.dynamic_classes.get("user_innerdiv", "")
@@ -106,17 +108,32 @@ class LLMWebsocketChatConsumer(AsyncWebsocketConsumer):
             template = f"""<div id="messageLog" hx-swap-oob="beforeend">
                 <div class="{outer_div}">
                     <div class="{inner_div}">
-                        <p id="{chat_id}" class="{p_style}"><strong> {role}:</strong> {content}</p>
+                        <div id="{chat_id}" class="{p_style}"><strong> {role}:</strong> {content}</div>
                     </div>
                 </div>
             </div>
                 """
         else:
-            # not a first message, so we append content to the <p> tag with the id chat-{response_id}
+             # not a first message, so we append content to the <p> tag with the id chat-{response_id}
             chat_id = f"chat-{response_id + 1}"
-            template = f"""<p id={chat_id} hx-swap-oob="beforeend">{content}</p>"""
+            if image:
+                template = f"""
+                <div id={chat_id} hx-swap-oob="beforeend">
+                           <img
+                            alt=""
+                            src="{image}"
+                            class="h-64 w-full object-contain sm:h-80 lg:h-96"
+                        />
+                        <p class="mt-2 max-w-sm text-gray-700">
+                            {content}
+                        </p>
+                </div>
+                """
+            
+            else:
+                template = f"""<div id={chat_id} hx-swap-oob="beforeend">{content}</div>"""
 
-        if content_complete:
+        if content_complete and not image:
             response_id += 1
             template = (
                 template
