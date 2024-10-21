@@ -1,11 +1,10 @@
 from django.conf import settings
 from openai import OpenAI
 
-from config.rag_model import get_rag_model
-
+from colivara_py import Colivara
 
 def run_rag_pipeline(messages):
-    RAG = get_rag_model()
+    RAG = Colivara()
     # first step - as this multi-conversation turns is to transform the messages in a RAG-appropriate query
     # example: message = ["role": "user", "content": "What is the capital of Brazil?", "assistant": "Brazil", "user": "how about france?"]
     # query should be = What the capital of France?
