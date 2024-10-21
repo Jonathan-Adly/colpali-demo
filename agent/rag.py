@@ -4,7 +4,9 @@ from openai import OpenAI
 from colivara_py import Colivara
 
 def run_rag_pipeline(messages):
-    RAG = Colivara()
+    rag_client = Colivara(
+        base_url="http://localhost:8001", api_key="m1TdGK5HeNRZjMbgClus0xCBsMuiyr8o"
+      )
     # first step - as this multi-conversation turns is to transform the messages in a RAG-appropriate query
     # example: message = ["role": "user", "content": "What is the capital of Brazil?", "assistant": "Brazil", "user": "how about france?"]
     # query should be = What the capital of France?
@@ -72,15 +74,32 @@ def run_rag_pipeline(messages):
         # remove any reasonings tags
         query = query.split("<reasoning>")[0].strip()
     print(f"This what we will send to the RAG pipeline: {query}")
-    results = RAG.search(query, k=3)
-    mapping = (
-        RAG.get_doc_ids_to_file_names()
-    )  # {1: 'docs/MSBI House Staff Manual .pdf', 2: 'docs/IntellectualProperty-Policy.pdf'}
+    results = rag_client.search(query=query, collection_name="mount sinai")
+    results = results.results
+    # example result: 
+    """{
+  "query": "string",
+  "results": [
+    {
+      "collection_name": "string",
+      "collection_id": 0,
+      "collection_metadata": {},
+      "document_name": "string",
+      "document_id": 0,
+      "document_metadata": {},
+      "page_number": 0,
+      "raw_score": 0,
+      "normalized_score": 0,
+      "img_base64": "string"
+    }
+    ]
+    }"""
+
     context= []
     for result in results:
-        document_title = mapping[result["doc_id"]].split("/")[-1]
-        page_num = result["page_num"]
-        base64 = result["base64"]
+        document_title = result.document_name
+        page_num = result.page_number
+        base64 = result.img_base64
         # base64 doesn;t have data: part so we need to add it
         if "data:image" not in base64:
             base64 = f"data:image/png;base64,{base64}"
