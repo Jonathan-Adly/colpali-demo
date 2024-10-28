@@ -4,9 +4,7 @@ from openai import OpenAI
 from colivara_py import Colivara
 
 def run_rag_pipeline(messages):
-    rag_client = Colivara(
-        base_url="http://localhost:8001", api_key="m1TdGK5HeNRZjMbgClus0xCBsMuiyr8o"
-      )
+    rag_client = Colivara()
     # first step - as this multi-conversation turns is to transform the messages in a RAG-appropriate query
     # example: message = ["role": "user", "content": "What is the capital of Brazil?", "assistant": "Brazil", "user": "how about france?"]
     # query should be = What the capital of France?

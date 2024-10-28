@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import json
 
 from django.conf import settings
@@ -168,7 +167,7 @@ class LlmClient:
                 if not result:
                     content = "I'm sorry but I was unable to send the video link. Please try again later."
                 if func_call["arguments"]["method"] == "email":
-                    content = f"I have sent you an email with a video link that will show you how to inject the medicine. Please check your email. Here is the link: <a href='# target='_blank'>dummy link</a>"
+                    content = "I have sent you an email with a video link that will show you how to inject the medicine. Please check your email. Here is the link: <a href='# target='_blank'>dummy link</a>"
                 else:
                     content = "I have sent you an SMS with a video link that will show you how to inject the medicine. Please check your phone. Here is the link: dummy link"
 
@@ -210,9 +209,9 @@ class LlmClient:
 
             # Initialize the Twilio client with the API key
             client = Client(api_key_sid, api_key_secret, account_sid)
-            message = client.messages.create(
+            client.messages.create(
                 body="Here is the video link: dummy link",
-                from_="+11234321123",
+                from_="+11234321123", # change to your twilio number
                 to=to,
             )
 
